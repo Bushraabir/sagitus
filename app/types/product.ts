@@ -1,5 +1,7 @@
 // types/product.ts
 
+import { Comment } from "./comment"
+
 export interface Product {
   id: string
   name: string

@@ -2,7 +2,7 @@
 // Client-side product fetching helpers for components that can't use Server Components.
 
 import { useState, useEffect } from 'react'
-import { Product } from '@/types/product'
+import { Product } from '../types/product'
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([])
