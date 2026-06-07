@@ -46,9 +46,10 @@ export default async function AdminOrdersPage() {
   }
 
   const enrichedOrders = (orders ?? []).map((o) => ({
-    ...o,
-    customer: profilesMap[o.user_id] ?? { full_name: null, email: null, phone: null },
-  }))
+  ...o,
+  order_items: (o.order_items ?? []) as any[],
+  customer: profilesMap[o.user_id] ?? { full_name: null, email: null, phone: null },
+})) as any[]
 
   return <AdminOrdersClient orders={enrichedOrders} />
 }
