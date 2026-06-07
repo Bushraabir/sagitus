@@ -8,14 +8,19 @@ import { createBrowserClient } from '@/lib/supabase/client'
 import Input from '../ui/Input'
 import Button from '../ui/Button'
 
+interface Category {
+  id: string
+  name: string
+  slug: string
+}
+
 interface Props {
   mode: 'create' | 'edit'
   product?: Product
+  categories: Category[]
 }
 
-const CATEGORIES = ['General', 'Clothing', 'Electronics', 'Food', 'Home', 'Other']
-
-export default function ProductForm({ mode, product }: Props) {
+export default function ProductForm({ mode, product, categories }: Props) {
   const router = useRouter()
   const supabase = createBrowserClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -23,15 +28,15 @@ export default function ProductForm({ mode, product }: Props) {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   const [form, setForm] = useState({
     name: product?.name ?? '',
     description: product?.description ?? '',
     price: product?.price?.toString() ?? '',
-    in_stock: product?.in_stock ?? true,
     discount_percent: product?.discount_percent?.toString() ?? '',
-    stock_quantity: product?.stock_quantity?.toString() ?? '',
-    category: product?.category ?? 'General',
+    stock_quantity: product?.stock_quantity?.toString() ?? '0',
+    category: product?.category ?? (categories[0]?.name ?? 'General'),
   })
 
   const resolveImages = (p?: Product): string[] => {
@@ -43,6 +48,7 @@ export default function ProductForm({ mode, product }: Props) {
 
   const [images, setImages] = useState<string[]>(() => resolveImages(product))
   const [previews, setPreviews] = useState<string[]>(() => resolveImages(product))
+  const [dragOver, setDragOver] = useState(false)
 
   useEffect(() => {
     const resolved = resolveImages(product)
@@ -50,25 +56,24 @@ export default function ProductForm({ mode, product }: Props) {
     setPreviews(resolved)
   }, [product?.id])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }))
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
+  const uploadFiles = async (files: File[]) => {
     if (!files.length) return
-
     setUploading(true)
     setError('')
+    setUploadProgress(0)
 
     const newUrls: string[] = []
     const newPreviews: string[] = []
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
       const localPreview = URL.createObjectURL(file)
       newPreviews.push(localPreview)
 
@@ -88,13 +93,28 @@ export default function ProductForm({ mode, product }: Props) {
 
       const { data } = supabase.storage.from('product-images').getPublicUrl(path)
       newUrls.push(data.publicUrl)
+      setUploadProgress(Math.round(((i + 1) / files.length) * 100))
     }
 
     setImages((prev) => [...prev, ...newUrls])
     setPreviews((prev) => [...prev, ...newPreviews])
     setUploading(false)
-
+    setUploadProgress(0)
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    await uploadFiles(files)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const files = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith('image/')
+    )
+    await uploadFiles(files)
   }
 
   const removeImage = async (index: number) => {
@@ -102,7 +122,9 @@ export default function ProductForm({ mode, product }: Props) {
     if (url && url.includes('/product-images/')) {
       const path = url.split('/product-images/')[1]
       if (path) {
-        await supabase.storage.from('product-images').remove([`products/${path.split('/products/')[1]}`])
+        await supabase.storage
+          .from('product-images')
+          .remove([`products/${path.split('/products/')[1]}`])
       }
     }
     setImages((prev) => prev.filter((_, i) => i !== index))
@@ -114,19 +136,21 @@ export default function ProductForm({ mode, product }: Props) {
     setLoading(true)
     setError('')
 
-    const qty = parseInt(form.stock_quantity)
-
+    const qty = parseInt(form.stock_quantity) || 0
     const payload = {
-      name: form.name,
-      description: form.description,
+      name: form.name.trim(),
+      description: form.description.trim(),
       price: parseFloat(form.price),
       images,
       image_url: images[0] ?? null,
       in_stock: qty > 0,
-      stock_quantity: isNaN(qty) ? 0 : qty,
+      stock_quantity: qty,
       discount_percent: form.discount_percent ? parseInt(form.discount_percent) : null,
       category: form.category || 'General',
     }
+
+    if (!payload.name) { setError('Product name is required'); setLoading(false); return }
+    if (isNaN(payload.price) || payload.price <= 0) { setError('Enter a valid price'); setLoading(false); return }
 
     const url = mode === 'create' ? '/api/products' : `/api/products/${product?.id}`
     const method = mode === 'create' ? 'POST' : 'PUT'
@@ -149,142 +173,208 @@ export default function ProductForm({ mode, product }: Props) {
     router.refresh()
   }
 
+  const stockQty = parseInt(form.stock_quantity) || 0
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      {/* Product Name */}
       <Input
         id="name"
         name="name"
-        label="Product Name"
+        label="Product Name *"
         value={form.name}
         onChange={handleChange}
-        placeholder="e.g. Nike Air Max 90"
+        placeholder="e.g. Premium Cotton T-Shirt"
         required
       />
 
+      {/* Description */}
       <div>
-        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description</label>
+        <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+          Description
+        </label>
         <textarea
           name="description"
           value={form.description}
           onChange={handleChange}
           rows={4}
           className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-3 focus:ring-orange-500/15 hover:border-slate-300 resize-none"
-          placeholder="Product description..."
+          placeholder="Describe the product — material, size, features..."
         />
       </div>
 
+      {/* Category */}
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-1.5">Category</label>
         <select
           name="category"
           value={form.category}
           onChange={handleChange}
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-3 focus:ring-orange-500/15 hover:border-slate-300"
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-3 focus:ring-orange-500/15 hover:border-slate-300 cursor-pointer"
         >
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.name}>{cat.name}</option>
           ))}
         </select>
+        <p className="mt-1.5 text-xs text-slate-400">
+          Manage categories in{' '}
+          <a href="/admin/categories" className="text-orange-600 hover:underline font-medium">
+            Admin → Categories
+          </a>
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* Price & Discount */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
           id="price"
           name="price"
-          label="Price (৳)"
           type="number"
-          min="0"
-          step="0.01"
+          label="Price (৳) *"
           value={form.price}
           onChange={handleChange}
           placeholder="0.00"
+          min="0.01"
+          step="0.01"
           required
         />
         <Input
           id="discount_percent"
           name="discount_percent"
-          label="Discount % (optional)"
           type="number"
-          min="0"
-          max="100"
+          label="Discount (%)"
           value={form.discount_percent}
           onChange={handleChange}
-          placeholder="e.g. 20"
+          placeholder="0"
+          min="0"
+          max="100"
+          hint="Leave blank for no discount"
         />
       </div>
 
-      <Input
-        id="stock_quantity"
-        name="stock_quantity"
-        label="Stock Quantity"
-        type="number"
-        min="0"
-        value={form.stock_quantity}
-        onChange={handleChange}
-        placeholder="e.g. 50"
-        hint="Setting to 0 will mark the product as out of stock automatically"
-        required
-      />
-
+      {/* Stock Quantity */}
       <div>
-        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Product Images</label>
+        <Input
+          id="stock_quantity"
+          name="stock_quantity"
+          type="number"
+          label="Stock Quantity *"
+          value={form.stock_quantity}
+          onChange={handleChange}
+          placeholder="0"
+          min="0"
+          step="1"
+        />
+        <div className="mt-2">
+          {stockQty === 0 ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              Out of Stock — will be hidden from customers
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              In Stock — {stockQty} unit{stockQty !== 1 ? 's' : ''} available
+            </span>
+          )}
+        </div>
+      </div>
 
+      {/* Image Upload */}
+      <div>
+        <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+          Product Images
+        </label>
+
+        {/* Drop zone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+            dragOver
+              ? 'border-orange-400 bg-orange-50'
+              : 'border-slate-200 hover:border-orange-300 hover:bg-slate-50'
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <div className="flex flex-col items-center gap-2 pointer-events-none">
+            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
+              {uploading ? (
+                <svg className="w-6 h-6 text-orange-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              )}
+            </div>
+            {uploading ? (
+              <div className="w-full max-w-xs">
+                <p className="text-sm font-medium text-slate-700 mb-2">
+                  Uploading... {uploadProgress}%
+                </p>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-orange-500 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-slate-700">
+                  Drop images here or click to upload
+                </p>
+                <p className="text-xs text-slate-400">PNG, JPG, WebP up to 10MB each</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Image previews */}
         {previews.length > 0 && (
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-3">
+          <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
             {previews.map((src, i) => (
-              <div key={i} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+              <div key={i} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
                 <img src={src} alt="" className="w-full h-full object-cover" />
                 {i === 0 && (
-                  <span className="absolute top-1.5 left-1.5 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-                    Cover
-                  </span>
+                  <div className="absolute top-1 left-1">
+                    <span className="text-[10px] font-bold text-white bg-orange-500 px-1.5 py-0.5 rounded-md">
+                      Main
+                    </span>
+                  </div>
                 )}
                 <button
                   type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute top-1.5 right-1.5 bg-rose-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                  onClick={(e) => { e.stopPropagation(); removeImage(i) }}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                 >
-                  ×
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             ))}
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="w-full border-2 border-dashed border-slate-200 rounded-xl py-8 flex flex-col items-center gap-2 text-slate-400 hover:border-orange-400 hover:text-orange-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {uploading ? (
-            <>
-              <div className="w-6 h-6 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm font-medium">Uploading...</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <span className="text-sm font-medium">Click to upload images</span>
-              <span className="text-xs">PNG, JPG, WEBP · Multiple allowed · First image is cover</span>
-            </>
-          )}
-        </button>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-        />
+        {previews.length > 1 && (
+          <p className="mt-1.5 text-xs text-slate-400">Drag to reorder — first image is the main photo</p>
+        )}
       </div>
 
+      {/* Error */}
       {error && (
         <div className="flex items-center gap-2.5 text-sm text-rose-600 bg-rose-50 border border-rose-200 px-4 py-3 rounded-xl">
           <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -294,12 +384,18 @@ export default function ProductForm({ mode, product }: Props) {
         </div>
       )}
 
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={loading} className="flex-1">
-          {mode === 'create' ? 'Add Product' : 'Save Changes'}
-        </Button>
-        <Button type="button" variant="ghost" onClick={() => router.back()}>
+      {/* Actions */}
+      <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1"
+          onClick={() => router.back()}
+        >
           Cancel
+        </Button>
+        <Button type="submit" loading={loading} className="flex-1">
+          {mode === 'create' ? 'Create Product' : 'Save Changes'}
         </Button>
       </div>
     </form>

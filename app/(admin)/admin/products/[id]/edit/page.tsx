@@ -1,5 +1,4 @@
 // app/(admin)/admin/products/[id]/edit/page.tsx
-
 import ProductForm from '@/app/components/product/ProductForm'
 import { createServerClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
@@ -11,11 +10,10 @@ interface Props {
 export default async function EditProductPage({ params }: Props) {
   const supabase = createServerClient()
 
-  const { data: product } = await supabase
-    .from('products')
-    .select('*')
-    .eq('id', params.id)
-    .single()
+  const [{ data: product }, { data: categories }] = await Promise.all([
+    supabase.from('products').select('*').eq('id', params.id).single(),
+    supabase.from('categories').select('id, name, slug').order('sort_order', { ascending: true }),
+  ])
 
   if (!product) notFound()
 
@@ -30,10 +28,13 @@ export default async function EditProductPage({ params }: Props) {
   }
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Edit Product</h1>
-      <div className="bg-white rounded-xl shadow p-8">
-        <ProductForm mode="edit" product={normalised} />
+    <div className="max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Edit Product</h1>
+        <p className="text-sm text-slate-400 mt-0.5 truncate">{product.name}</p>
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8">
+        <ProductForm mode="edit" product={normalised} categories={categories ?? []} />
       </div>
     </div>
   )
