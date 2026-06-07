@@ -28,7 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: product.name,
       description: product.description || `Buy ${product.name} at Bushal.`,
-      type: 'product',
+      // FIX: Removed `type: 'product'` because Next.js Metadata API only accepts 'website', 'article', etc.
+      // The default 'website' type is perfectly fine for social media previews.
       images: [{ url: coverImage, width: 800, height: 800, alt: product.name }],
     },
     twitter: { card: 'summary_large_image', title: product.name, images: [coverImage] },
@@ -69,7 +70,7 @@ export default async function ProductPage({ params }: Props) {
 
   const productJsonLd = {
     '@context': 'https://schema.org/',
-    '@type': 'Product',
+    '@type': 'Product', // <--- This is what Google actually reads for Product Rich Snippets!
     name: product.name,
     image: coverImage,
     description: product.description || 'Premium curated product at Bushal.',
