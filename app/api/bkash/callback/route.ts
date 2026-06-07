@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     try {
       if (process.env.RESEND_API_KEY && profile?.email) {
         await resend.emails.send({
-          from: 'Sagitus <noreply@sagitus.com>',
+          from: 'Bushal <noreply@Bushal.com>',
           to: [profile.email],
           subject: `Order Confirmed — #${orderId.slice(0, 8).toUpperCase()}`,
           html: `
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
               <h1 style="color:#ea580c;">Order Confirmed ✓</h1>
               <p>Hi ${customerName},</p>
               <p>Your bKash payment was successful. Order <strong>#${orderId.slice(0, 8).toUpperCase()}</strong> is being processed.</p>
-              <p style="color:#64748b;font-size:13px;">— The Sagitus Team</p>
+              <p style="color:#64748b;font-size:13px;">— The Bushal Team</p>
             </div>
           `,
         })

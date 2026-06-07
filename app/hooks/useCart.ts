@@ -65,7 +65,7 @@ export const useCart = create<CartStore>()(
       clearCart: () => set({ items: [] }),
     }),
     {
-      name: 'sagitus-cart', // localStorage key
+      name: 'Bushal-cart', // localStorage key
     }
   )
 )

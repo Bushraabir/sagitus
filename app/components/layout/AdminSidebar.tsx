@@ -69,7 +69,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 pt-6 pb-5 border-b border-white/10">
         <div>
-          <p className="text-xl font-extrabold text-white tracking-tight">Sagitus</p>
+          <p className="text-xl font-extrabold text-white tracking-tight">Bushal</p>
           <p className="text-xs text-orange-300 font-medium mt-0.5">Admin Panel</p>
         </div>
         {onClose && (
@@ -137,7 +137,7 @@ export default function AdminSidebar() {
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-[#1a1f2e] border-b border-white/10">
         <div>
-          <p className="text-base font-extrabold text-white">Sagitus</p>
+          <p className="text-base font-extrabold text-white">Bushal</p>
           <p className="text-[10px] text-orange-300 font-medium -mt-0.5">Admin</p>
         </div>
         <button

@@ -34,7 +34,7 @@ export default async function ThankYouPage({ searchParams }: Props) {
 
         <h1 className="text-4xl font-bold text-gray-900 mb-4">Order Confirmed!</h1>
         <p className="text-lg text-gray-600 mb-4">
-          Thank you for shopping with Sagitus.
+          Thank you for shopping with Bushal.
         </p>
 
         {order && (

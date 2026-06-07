@@ -228,7 +228,7 @@ export default async function AdminDashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Analytics Overview</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Real-time store performance · Sagitus Admin</p>
+          <p className="text-sm text-slate-400 mt-0.5">Real-time store performance · Bushal Admin</p>
         </div>
         <Link
           href="/admin/products/new"

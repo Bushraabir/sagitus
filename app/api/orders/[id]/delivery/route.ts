@@ -74,7 +74,7 @@ export async function PATCH(
   // Send email notification to customer via Resend (or fallback to Supabase Edge Function)
   // We call an edge function or a simple fetch to the email service
   try {
-    const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@sagitus.com'
+    const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@Bushal.com'
     const resendKey  = process.env.RESEND_API_KEY
 
     if (resendKey) {
@@ -91,12 +91,12 @@ export async function PATCH(
       const label   = DELIVERY_LABELS[delivery_status]
 
       const emailPayload = {
-        from: `Sagitus <noreply@sagitus.com>`,
+        from: `Bushal <noreply@Bushal.com>`,
         to: customerEmail ? [customerEmail, adminEmail] : [adminEmail],
         subject: `Order #${orderId} — Status Updated: ${label}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px;">
-            <h1 style="color:#f97316; font-size:24px; margin-bottom:8px;">Sagitus</h1>
+            <h1 style="color:#f97316; font-size:24px; margin-bottom:8px;">Bushal</h1>
             <hr style="border:none; border-top:1px solid #e2e8f0; margin: 16px 0;" />
             <h2 style="color:#1e293b; font-size:18px;">Order Status Updated</h2>
             <p style="color:#475569;">Hi ${customerName},</p>
@@ -104,8 +104,8 @@ export async function PATCH(
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; margin:20px 0;">
               <p style="font-size:20px; font-weight:bold; color:#1e293b; margin:0;">${label}</p>
             </div>
-            <p style="color:#475569;">You can track your order status at any time in your <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sagitus.com'}/orders" style="color:#f97316;">order history</a>.</p>
-            <p style="color:#94a3b8; font-size:13px; margin-top:32px;">— The Sagitus Team</p>
+            <p style="color:#475569;">You can track your order status at any time in your <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://Bushal.com'}/orders" style="color:#f97316;">order history</a>.</p>
+            <p style="color:#94a3b8; font-size:13px; margin-top:32px;">— The Bushal Team</p>
           </div>
         `,
       }

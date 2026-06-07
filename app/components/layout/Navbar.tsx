@@ -332,7 +332,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
 
             <Link href="/dashboard" className="text-2xl font-extrabold text-orange-500 tracking-tight hover:text-orange-400 transition-colors flex-shrink-0" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-              Sagitus
+              Bushal
             </Link>
 
             <div className="flex-1 mx-6 hidden md:block" ref={searchRef}>

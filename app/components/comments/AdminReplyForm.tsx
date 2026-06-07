@@ -57,7 +57,7 @@ export default function AdminReplyForm({ commentId }: Props) {
         value={reply}
         onChange={(e) => setReply(e.target.value)}
         rows={3}
-        placeholder="Write your reply as Sagitus Team..."
+        placeholder="Write your reply as Bushal Team..."
         className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none text-sm"
         required
       />

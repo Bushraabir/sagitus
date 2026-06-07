@@ -192,7 +192,7 @@ function CommentCard({ comment, currentUserId, isAdmin }: CommentCardProps) {
       {currentComment.admin_reply && !editingReply && (
         <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
           <div className="flex items-center justify-between mb-1">
-            <p className="text-xs font-bold text-orange-600">💬 Sagitus Team:</p>
+            <p className="text-xs font-bold text-orange-600">💬 Bushal Team:</p>
             {isAdmin && (
               <div className="flex gap-1">
                 <button onClick={() => { setEditingReply(true); setReplyBody(currentComment.admin_reply ?? '') }}

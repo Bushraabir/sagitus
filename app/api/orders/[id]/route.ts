@@ -80,12 +80,12 @@ export async function PATCH(
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
           body: JSON.stringify({
-            from: 'Sagitus <noreply@sagitus.com>',
+            from: 'Bushal <noreply@Bushal.com>',
             to: [customerEmail],
             subject: `Order #${orderId} — Status Updated: ${label}`,
             html: `
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px;">
-                <h1 style="color:#f97316; font-size:24px; margin-bottom:8px;">Sagitus</h1>
+                <h1 style="color:#f97316; font-size:24px; margin-bottom:8px;">Bushal</h1>
                 <hr style="border:none; border-top:1px solid #e2e8f0; margin: 16px 0;" />
                 <h2 style="color:#1e293b; font-size:18px;">Order Status Updated</h2>
                 <p style="color:#475569;">Hi ${customerName},</p>
@@ -93,8 +93,8 @@ export async function PATCH(
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; margin:20px 0;">
                   <p style="font-size:20px; font-weight:bold; color:#1e293b; margin:0;">${label}</p>
                 </div>
-                <p style="color:#475569;">Track your order at <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sagitus.com'}/orders" style="color:#f97316;">sagitus.com/orders</a>.</p>
-                <p style="color:#94a3b8; font-size:13px; margin-top:32px;">— The Sagitus Team</p>
+                <p style="color:#475569;">Track your order at <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://Bushal.com'}/orders" style="color:#f97316;">Bushal.com/orders</a>.</p>
+                <p style="color:#94a3b8; font-size:13px; margin-top:32px;">— The Bushal Team</p>
               </div>
             `,
           }),

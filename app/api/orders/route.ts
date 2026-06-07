@@ -61,7 +61,7 @@ export async function POST(request: Request) {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: 'Sagitus Store <onboarding@resend.dev>',
+          from: 'Bushal Store <onboarding@resend.dev>',
           to: process.env.ADMIN_EMAIL,
           subject: `New ${order.payment_method.toUpperCase()} Order #${order.id.slice(0, 8).toUpperCase()}`,
           html: `
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
                 <h1 style="color: #ffffff; margin: 0; font-size: 24px;">New Order Received! 🎉</h1>
               </div>
               <div style="padding: 24px;">
-                <p style="font-size: 16px; color: #334155;">You have a new order from <strong>Sagitus</strong>.</p>
+                <p style="font-size: 16px; color: #334155;">You have a new order from <strong>Bushal</strong>.</p>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
                   <tr><td style="padding: 8px 0; color: #64748b;">Order ID:</td><td style="padding: 8px 0; color: #0f172a; font-weight: 600;">#${order.id.slice(0, 8).toUpperCase()}</td></tr>
                   <tr><td style="padding: 8px 0; color: #64748b;">Payment:</td><td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${order.payment_method === 'cod' ? 'Cash on Delivery' : 'bKash'}</td></tr>

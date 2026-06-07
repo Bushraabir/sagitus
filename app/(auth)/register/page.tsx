@@ -12,7 +12,7 @@ export default function RegisterPage() {
             className="text-4xl font-extrabold text-orange-600 tracking-tight hover:text-orange-700 transition-colors"
             style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}
           >
-            Sagitus
+            Bushal
           </Link>
           <p className="mt-2 text-slate-500 text-sm">Create your free account</p>
         </div>

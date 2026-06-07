@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Sagitus — Your Trusted Store',
+  title: 'Bushal — Your Trusted Store',
   description: 'Quality products, delivered fast across Bangladesh.',
 }
 
