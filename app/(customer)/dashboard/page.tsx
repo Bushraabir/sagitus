@@ -4,7 +4,7 @@ import Navbar from '@/app/components/layout/Navbar'
 import Footer from '@/app/components/layout/Footer'
 import BottomNav from '@/app/components/layout/BottomNav'
 import HeroBanner from '@/app/components/home/HeroBanner'
-import TrustBar from '@/app/components/home/TrustBar'
+
 import SectionHeader from '@/app/components/ui/SectionHeader'
 import PageWrapper from '@/app/components/layout/PageWrapper'
 import { formatPrice } from '@/app/lib/utils/formatPrice'
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
       
       <PageWrapper maxWidth="7xl" className="pb-28 md:pb-12">
         <HeroBanner />
-        <TrustBar />
+
 
         {discounted.length > 0 && (
           <section className="mb-10">

@@ -1,34 +1,11 @@
 // app/api/bkash/callback/route.ts
 // Notifies admins of new confirmed orders via in-app notification
-
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { bkashExecutePayment } from '@/app/lib/bkash'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-
-async function notifyAdminsNewOrder(
-  supabase: ReturnType<typeof createServerClient>,
-  orderId: string,
-  total: number,
-  customerName: string,
-) {
-  try {
-    const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
-    for (const admin of admins ?? []) {
-      await supabase.from('notifications').insert({
-        user_id:  admin.id,
-        type:     'new_order',
-        title:    `New Order — #${orderId.slice(0, 8).toUpperCase()}`,
-        body:     `${customerName} placed an order for ৳${Number(total).toFixed(0)}. Payment confirmed via bKash.`,
-        order_id: orderId,
-      })
-    }
-  } catch (e) {
-    console.error('Admin order notification failed:', e)
-  }
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -49,9 +26,12 @@ export async function GET(request: Request) {
   if (!paymentID || !orderId) return NextResponse.redirect(`${origin}/cart?bkash=failed&reason=missing`)
 
   const supabase = createServerClient()
-
+  
   const { data: existingOrder } = await supabase
-    .from('orders').select('status, user_id, total, bkash_invoice').eq('id', orderId).single()
+    .from('orders')
+    .select('status, user_id, total, bkash_invoice')
+    .eq('id', orderId)
+    .single()
 
   if (existingOrder?.status === 'fulfilled') return NextResponse.redirect(`${origin}/thank-you?orderId=${orderId}`)
   if (existingOrder?.status === 'cancelled')  return NextResponse.redirect(`${origin}/cart?bkash=failed&reason=cancelled`)
@@ -63,27 +43,35 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/cart?bkash=failed&reason=execute_failed`)
   }
 
+  // Idempotency check to prevent double-fulfillment on bKash retries
+  const { data: alreadyFulfilled } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('bkash_invoice', existingOrder?.bkash_invoice)
+    .eq('status', 'fulfilled')
+    .maybeSingle()
+
+  if (alreadyFulfilled) {
+    return NextResponse.redirect(`${origin}/thank-you?orderId=${orderId}`)
+  }
+
   await supabase.from('orders')
-    .update({ status: 'fulfilled', delivery_status: 'confirmed', bkash_payment_id: paymentID, bkash_trx_id: executeRes.trxID })
+    .update({ 
+      status: 'fulfilled', 
+      delivery_status: 'confirmed', 
+      bkash_payment_id: paymentID, 
+      bkash_trx_id: executeRes.trxID 
+    })
     .eq('id', orderId)
 
-  // Notify the customer
-  await supabase.from('notifications').insert({
-    user_id:  existingOrder?.user_id,
-    type:     'order_status',
-    title:    `Order #${orderId.slice(0, 8).toUpperCase()} — Confirmed`,
-    body:     `Your bKash payment was successful! Your order has been confirmed and is being prepared.`,
-    order_id: orderId,
-  })
 
-  // Notify admins
+  // KEEP THE EMAIL LOGIC (Triggers don't send emails)
   if (existingOrder?.user_id) {
     const { data: profile } = await supabase
       .from('profiles').select('full_name, email').eq('id', existingOrder.user_id).single()
+    
     const customerName = profile?.full_name ?? 'A customer'
-    await notifyAdminsNewOrder(supabase, orderId, existingOrder.total, customerName)
 
-    // Email customer
     try {
       if (process.env.RESEND_API_KEY && profile?.email) {
         await resend.emails.send({

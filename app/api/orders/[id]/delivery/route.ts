@@ -1,6 +1,6 @@
 // app/api/orders/[id]/delivery/route.ts
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/auth'
 
 const DELIVERY_LABELS: Record<string, string> = {
   order_placed:     'Order Placed',
@@ -11,25 +11,15 @@ const DELIVERY_LABELS: Record<string, string> = {
   delivered:        'Delivered',
   cancelled:        'Cancelled',
 }
-
 const VALID_STATUSES = Object.keys(DELIVERY_LABELS)
 
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient()
-
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single()
-
-  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // 🔒 AUDIT FIX: Use requireAdmin helper instead of manual session/role checks.
+  const auth = await requireAdmin()
+  if (!auth.success) return auth.response
 
   const body = await request.json()
   const { delivery_status } = body
@@ -39,7 +29,7 @@ export async function PATCH(
   }
 
   // Fetch existing order to append delivery step
-  const { data: existing } = await supabase
+  const { data: existing } = await auth.supabase
     .from('orders')
     .select('id, delivery_steps, user_id')
     .eq('id', params.id)
@@ -55,15 +45,15 @@ export async function PATCH(
   }
   const updatedSteps = [...existingSteps, newStep]
 
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await auth.supabase
     .from('orders')
     .update({
       delivery_status,
       delivery_steps: updatedSteps,
       // keep status in sync for legacy compatibility
       status: delivery_status === 'delivered' ? 'fulfilled'
-            : delivery_status === 'cancelled'  ? 'cancelled'
-            : 'pending',
+        : delivery_status === 'cancelled'  ? 'cancelled'
+        : 'pending',
     })
     .eq('id', params.id)
     .select()
@@ -71,15 +61,13 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Send email notification to customer via Resend (or fallback to Supabase Edge Function)
-  // We call an edge function or a simple fetch to the email service
+  // Send email notification to customer via Resend (non-fatal)
   try {
     const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@Bushal.com'
     const resendKey  = process.env.RESEND_API_KEY
-
     if (resendKey) {
       // Fetch customer email
-      const { data: customerProfile } = await supabase
+      const { data: customerProfile } = await auth.supabase
         .from('profiles')
         .select('email, full_name')
         .eq('id', existing.user_id)

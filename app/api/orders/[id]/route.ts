@@ -1,8 +1,6 @@
 // app/api/orders/[id]/route.ts
-// Updated to create in-app notifications when order status changes
-
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/auth'
 
 const DELIVERY_LABELS: Record<string, string> = {
   order_placed:     'Order Placed',
@@ -13,21 +11,15 @@ const DELIVERY_LABELS: Record<string, string> = {
   delivered:        'Delivered',
   cancelled:        'Order Cancelled',
 }
-
 const VALID_STATUSES = Object.keys(DELIVERY_LABELS)
 
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient()
-
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', session.user.id).single()
-  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // 🔒 AUDIT FIX: Use requireAdmin helper instead of manual session/role checks.
+  const auth = await requireAdmin()
+  if (!auth.success) return auth.response
 
   const body = await request.json()
   const { delivery_status } = body
@@ -36,7 +28,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid delivery_status' }, { status: 400 })
   }
 
-  const { data: existing } = await supabase
+  const { data: existing } = await auth.supabase
     .from('orders').select('id, delivery_steps, user_id').eq('id', params.id).single()
   if (!existing) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
@@ -44,7 +36,7 @@ export async function PATCH(
   const newStep = { status: delivery_status, label: DELIVERY_LABELS[delivery_status], timestamp: new Date().toISOString() }
   const updatedSteps = [...existingSteps, newStep]
 
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await auth.supabase
     .from('orders')
     .update({
       delivery_status,
@@ -55,27 +47,20 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Create in-app notification for the customer
-  const label    = DELIVERY_LABELS[delivery_status]
-  const orderId  = params.id.slice(0, 8).toUpperCase()
-  await supabase.from('notifications').insert({
-    user_id:  existing.user_id,
-    type:     'order_status',
-    title:    `Order #${orderId} — ${label}`,
-    body:     getNotificationBody(delivery_status, orderId),
-    order_id: params.id,
-  })
+  //  Removed manual notification insert.
+  // The DB trigger 'notify_on_order_status_change' automatically handles customer notifications.
 
   // Email notification (non-fatal)
   try {
     const resendKey = process.env.RESEND_API_KEY
     if (resendKey) {
-      const { data: customerProfile } = await supabase
+      const { data: customerProfile } = await auth.supabase
         .from('profiles').select('email, full_name').eq('id', existing.user_id).single()
       const customerEmail = customerProfile?.email
       const customerName  = customerProfile?.full_name ?? 'Customer'
-
       if (customerEmail) {
+        const label = DELIVERY_LABELS[delivery_status]
+        const orderId = params.id.slice(0, 8).toUpperCase()
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
@@ -106,17 +91,4 @@ export async function PATCH(
   }
 
   return NextResponse.json({ delivery_status: updated.delivery_status, delivery_steps: updated.delivery_steps })
-}
-
-function getNotificationBody(status: string, orderId: string): string {
-  const messages: Record<string, string> = {
-    order_placed:     `Your order #${orderId} has been placed and is awaiting confirmation.`,
-    confirmed:        `Great news! Your order #${orderId} has been confirmed.`,
-    processing:       `Your order #${orderId} is being prepared for shipment.`,
-    shipped:          `Your order #${orderId} has been shipped and is on its way!`,
-    out_for_delivery: `Your order #${orderId} is out for delivery today.`,
-    delivered:        `Your order #${orderId} has been delivered. Enjoy! 🎉`,
-    cancelled:        `Your order #${orderId} has been cancelled.`,
-  }
-  return messages[status] ?? `Your order #${orderId} status has been updated.`
 }
