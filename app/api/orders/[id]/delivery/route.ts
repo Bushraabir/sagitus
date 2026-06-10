@@ -1,4 +1,8 @@
 // app/api/orders/[id]/delivery/route.ts
+// Handles admin updates to order delivery status. 
+// Uses an atomic PostgreSQL function (confirm_order_and_reduce_stock) to ensure 
+// product stock is reduced exactly once when the admin confirms the order.
+
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 
@@ -17,7 +21,6 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  //  Use requireAdmin helper instead of manual session/role checks.
   const auth = await requireAdmin()
   if (!auth.success) return auth.response
 
@@ -28,92 +31,74 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid delivery_status' }, { status: 400 })
   }
 
-  // Fetch existing order to append delivery step
+  // Fetch existing order to get user_id for email notification
   const { data: existing } = await auth.supabase
     .from('orders')
-    .select('id, delivery_steps, user_id')
+    .select('id, user_id')
     .eq('id', params.id)
     .single()
 
   if (!existing) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-  const existingSteps: any[] = Array.isArray(existing.delivery_steps) ? existing.delivery_steps : []
-  const newStep = {
-    status: delivery_status,
-    label: DELIVERY_LABELS[delivery_status],
-    timestamp: new Date().toISOString(),
+  // Call the atomic RPC to update status, append delivery step, and reduce stock (if not already done)
+  const { data: rpcData, error: rpcError } = await auth.supabase.rpc('confirm_order_and_reduce_stock', {
+    p_order_id: params.id,
+    p_new_status: delivery_status,
+  })
+
+  if (rpcError) {
+    console.error('RPC Error:', rpcError)
+    return NextResponse.json({ error: rpcError.message }, { status: 500 })
   }
-  const updatedSteps = [...existingSteps, newStep]
-
-  const { data: updated, error } = await auth.supabase
-    .from('orders')
-    .update({
-      delivery_status,
-      delivery_steps: updatedSteps,
-      // keep status in sync for legacy compatibility
-      status: delivery_status === 'delivered' ? 'fulfilled'
-        : delivery_status === 'cancelled'  ? 'cancelled'
-        : 'pending',
-    })
-    .eq('id', params.id)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Send email notification to customer via Resend (non-fatal)
   try {
-    const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@Bushal.com'
-    const resendKey  = process.env.RESEND_API_KEY
+    const resendKey = process.env.RESEND_API_KEY
     if (resendKey) {
-      // Fetch customer email
       const { data: customerProfile } = await auth.supabase
         .from('profiles')
         .select('email, full_name')
         .eq('id', existing.user_id)
         .single()
 
-      const customerEmail = customerProfile?.email
-      const customerName  = customerProfile?.full_name ?? 'Customer'
-      const orderId = params.id.slice(0, 8).toUpperCase()
-      const label   = DELIVERY_LABELS[delivery_status]
+      if (customerProfile?.email) {
+        const label = DELIVERY_LABELS[delivery_status]
+        const orderId = params.id.slice(0, 8).toUpperCase()
 
-      const emailPayload = {
-        from: `Bushal <noreply@Bushal.com>`,
-        to: customerEmail ? [customerEmail, adminEmail] : [adminEmail],
-        subject: `Order #${orderId} — Status Updated: ${label}`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px;">
-            <h1 style="color:#f97316; font-size:24px; margin-bottom:8px;">Bushal</h1>
-            <hr style="border:none; border-top:1px solid #e2e8f0; margin: 16px 0;" />
-            <h2 style="color:#1e293b; font-size:18px;">Order Status Updated</h2>
-            <p style="color:#475569;">Hi ${customerName},</p>
-            <p style="color:#475569;">Your order <strong>#${orderId}</strong> has been updated to:</p>
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; margin:20px 0;">
-              <p style="font-size:20px; font-weight:bold; color:#1e293b; margin:0;">${label}</p>
-            </div>
-            <p style="color:#475569;">You can track your order status at any time in your <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://Bushal.com'}/orders" style="color:#f97316;">order history</a>.</p>
-            <p style="color:#94a3b8; font-size:13px; margin-top:32px;">— The Bushal Team</p>
-          </div>
-        `,
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${resendKey}`,
+          },
+          body: JSON.stringify({
+            from: 'Bushal <noreply@bushal.com>',
+            to: [customerProfile.email],
+            subject: `Order #${orderId} — Status Updated: ${label}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px;">
+                <h1 style="color:#f97316; font-size:24px; margin-bottom:8px;">Bushal</h1>
+                <hr style="border:none; border-top:1px solid #e2e8f0; margin: 16px 0;" />
+                <h2 style="color:#1e293b; font-size:18px;">Order Status Updated</h2>
+                <p style="color:#475569;">Hi ${customerProfile.full_name ?? 'Customer'},</p>
+                <p style="color:#475569;">Your order <strong>#${orderId}</strong> has been updated to:</p>
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; margin:20px 0;">
+                  <p style="font-size:20px; font-weight:bold; color:#1e293b; margin:0;">${label}</p>
+                </div>
+                <p style="color:#475569;">You can track your order status at any time in your <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bushal.com'}/orders" style="color:#f97316;">order history</a>.</p>
+                <p style="color:#94a3b8; font-size:13px; margin-top:32px;">— The Bushal Team</p>
+              </div>
+            `,
+          }),
+        })
       }
-
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${resendKey}`,
-        },
-        body: JSON.stringify(emailPayload),
-      })
     }
   } catch (emailErr) {
     console.error('Email notification failed:', emailErr)
-    // Non-fatal — order is already updated
   }
 
   return NextResponse.json({
-    delivery_status: updated.delivery_status,
-    delivery_steps: updated.delivery_steps,
+    delivery_status,
+    inventory_reduced_now: rpcData?.inventory_reduced_now ?? false,
   })
 }

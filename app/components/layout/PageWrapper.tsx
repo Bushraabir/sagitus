@@ -21,7 +21,7 @@ export default function PageWrapper({
     lg: 'max-w-lg',
     xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
-    '5xl': 'max-w-5xl', // Added 5xl for Checkout, Product, and Profile pages
+    '5xl': 'max-w-5xl', 
     '7xl': 'max-w-7xl',
   }[maxWidth]
 
