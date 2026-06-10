@@ -26,7 +26,6 @@ const HEADLINES = [
   { eyebrow: 'Shop with', word: 'Transparency.' },
 ]
 
-const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
 // Deterministic — no SSR/hydration mismatch
 const PARTICLES = Array.from({ length: 32 }, (_, i) => ({
@@ -117,22 +116,7 @@ export default function HeroBanner() {
     trailRafRef.current = requestAnimationFrame(drawTrail)
   }, [isHovering])
 
-  // ── text scramble
-  const scramble = useCallback((final: string) => {
-    let frame = 0
-    const total = 20
-    const id = setInterval(() => {
-      const p = frame / total
-      setEyebrowText(
-        final.split('').map((ch, i) => {
-          if (ch === ' ') return ' '
-          if (i / final.length < p + 0.12) return ch
-          return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]
-        }).join('')
-      )
-      if (++frame > total) { setEyebrowText(final); clearInterval(id) }
-    }, 38)
-  }, [])
+
 
   // ── count-up
   const countUp = useCallback((target: number) => {
@@ -162,11 +146,7 @@ export default function HeroBanner() {
     }
   }, [])
 
-  useEffect(() => {
-    setMounted(true)
-    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0)
-    scramble('THE BUSHAL COLLECTION')
-  }, [scramble])
+
 
   useEffect(() => {
     if (isTouchDevice) return
@@ -271,7 +251,6 @@ export default function HeroBanner() {
     return () => clearInterval(t)
   }, [hlIndex])
 
-  useEffect(() => { scramble('THE BUSHAL COLLECTION') }, [hlIndex, scramble])
 
   const rotX = (mousePos.y - 0.5) * -9
   const rotY = (mousePos.x - 0.5) * 9
