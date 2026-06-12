@@ -8,7 +8,6 @@ export default function Footer() {
     <footer className="bg-bushal-forest text-white/60 mt-20 border-t border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10">
-          
           {/* Brand Column */}
           <div className="sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
@@ -33,17 +32,17 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li>
                 <Link href="/dashboard" className="hover:text-bushal-copperGlow transition-colors duration-200">
-                  All Products
+                  <span>All Products</span>
                 </Link>
               </li>
               <li>
                 <Link href="/cart" className="hover:text-bushal-copperGlow transition-colors duration-200">
-                  My Cart
+                  <span>My Cart</span>
                 </Link>
               </li>
               <li>
                 <Link href="/orders" className="hover:text-bushal-copperGlow transition-colors duration-200">
-                  My Orders
+                  <span>My Orders</span>
                 </Link>
               </li>
             </ul>
@@ -55,17 +54,17 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li>
                 <Link href="/login" className="hover:text-bushal-copperGlow transition-colors duration-200">
-                  Sign In
+                  <span>Sign In</span>
                 </Link>
               </li>
               <li>
                 <Link href="/register" className="hover:text-bushal-copperGlow transition-colors duration-200">
-                  Register
+                  <span>Register</span>
                 </Link>
               </li>
               <li>
                 <Link href="/profile" className="hover:text-bushal-copperGlow transition-colors duration-200">
-                  My Profile
+                  <span>My Profile</span>
                 </Link>
               </li>
             </ul>
@@ -76,11 +75,11 @@ export default function Footer() {
             <h3 className="text-white font-semibold mb-4 text-sm tracking-wide uppercase">Support</h3>
             <ul className="space-y-3 text-sm">
               <li>
-                <a 
-                  href="mailto:hello@bushal.com" 
+                <a
+                  href="mailto:hello@bushal.com"
                   className="hover:text-bushal-copperGlow transition-colors duration-200 flex items-center gap-2"
                 >
-                  hello@bushal.com
+                  <span>hello@bushal.com</span>
                 </a>
               </li>
               <li className="flex items-center gap-2 text-white/70">
@@ -109,9 +108,13 @@ export default function Footer() {
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/40">
           <span>© {currentYear} Bushal. All rights reserved.</span>
           <div className="flex items-center gap-4">
-            <Link href="/terms" className="hover:text-white/70 transition-colors">Terms of Service</Link>
+            <Link href="/terms" className="hover:text-white/70 transition-colors">
+              <span>Terms of Service</span>
+            </Link>
             <span className="w-1 h-1 rounded-full bg-white/20" />
-            <Link href="/privacy" className="hover:text-white/70 transition-colors">Privacy Policy</Link>
+            <Link href="/privacy" className="hover:text-white/70 transition-colors">
+              <span>Privacy Policy</span>
+            </Link>
           </div>
           <span className="flex items-center gap-1.5">
             Made with care in Bangladesh 🇧🇩

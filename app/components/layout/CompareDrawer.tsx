@@ -1,10 +1,5 @@
 // app/components/layout/CompareDrawer.tsx
 
-// A fixed, sliding drawer component that allows users to compare 
-// selected products side-by-side. It uses the `useCompare` Zustand 
-// store to fetch the items and Framer Motion for smooth entrance/exit 
-// animations.
-
 'use client'
 
 import { useCompare } from '@/app/hooks/useCompare'
@@ -21,8 +16,7 @@ export default function CompareDrawer() {
   const { items, removeItem, clearCompare, getItemCount, toggleItem } = useCompare()
   const { addItem } = useCart()
   const [isOpen, setIsOpen] = useState(false)
-  
-  // Auto-open drawer when items are added
+
   useEffect(() => {
     if (getItemCount() > 0) {
       setIsOpen(true)
@@ -33,7 +27,6 @@ export default function CompareDrawer() {
 
   if (items.length === 0) return null
 
-  // Helper to move an item to cart and remove from compare
   const handleMoveToCart = (item: CompareItem) => {
     const productForCart: Product = {
       id: item.id,
@@ -57,7 +50,7 @@ export default function CompareDrawer() {
   return (
     <>
       {/* Toggle Button (Floating) */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="fixed bottom-6 right-6 z-40"
@@ -144,17 +137,17 @@ export default function CompareDrawer() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
-                          <Link href={`/product/${item.id}`} className="block hover:opacity-80 transition-opacity">
+                          <Link href={`/product/${item.id}`} className="block group">
                             <div className="aspect-square bg-bushal-ivoryDeep rounded-xl overflow-hidden mb-3 border border-bushal-border">
                               {(item.images?.[0] ?? item.image_url) && (
                                 <img
                                   src={(item.images?.[0] ?? item.image_url) ?? undefined}
                                   alt={item.name}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                 />
                               )}
                             </div>
-                            <p className="text-sm font-semibold text-bushal-forest line-clamp-2 font-heading leading-tight">
+                            <p className="text-sm font-semibold text-bushal-forest line-clamp-2 font-heading leading-tight group-hover:text-bushal-copper transition-colors">
                               {item.name}
                             </p>
                           </Link>
@@ -169,7 +162,6 @@ export default function CompareDrawer() {
                       {items.map((item) => {
                         const dp = item.discount_percent ? item.price * (1 - item.discount_percent / 100) : null
                         const isLowest = items.length > 1 && (!dp || dp === Math.min(...items.map(i => (i.discount_percent ? i.price * (1 - i.discount_percent / 100) : i.price))))
-                        
                         return (
                           <td key={item.id} className="py-4 text-center relative">
                             <div className={cn("font-bold text-lg", isLowest ? "text-bushal-success" : "text-bushal-copper")}>
@@ -200,7 +192,7 @@ export default function CompareDrawer() {
                       ))}
                     </tr>
 
-                    {/* Description Row (Truncated) */}
+                    {/* Description Row */}
                     <tr className="border-t border-bushal-border">
                       <td className="py-4 pr-4 font-semibold text-bushal-ink sticky left-0 bg-bushal-surface align-top">Description</td>
                       {items.map((item) => (
@@ -217,13 +209,13 @@ export default function CompareDrawer() {
                       <td className="py-6 pr-4 sticky left-0 bg-bushal-surface"></td>
                       {items.map((item) => (
                         <td key={item.id} className="py-6 text-center">
-                          <button 
+                          <button
                             onClick={() => handleMoveToCart(item)}
                             disabled={!item.in_stock}
                             className={cn(
-                              "inline-flex items-center justify-center w-full px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-colors",
-                              item.in_stock 
-                                ? "bg-bushal-forest text-white hover:bg-bushal-forestMid" 
+                              "inline-flex items-center justify-center w-full px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all",
+                              item.in_stock
+                                ? "bg-bushal-forest text-white hover:bg-bushal-forestMid active:scale-[0.97]"
                                 : "bg-bushal-ivoryDeep text-bushal-inkSoft cursor-not-allowed"
                             )}
                           >
@@ -235,6 +227,20 @@ export default function CompareDrawer() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Footer with link to full compare page */}
+            <div className="px-6 py-4 border-t border-bushal-border bg-bushal-ivoryDeep/30">
+              <Link
+                href="/compare"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-bushal-copper text-white text-sm font-semibold hover:bg-bushal-copperLight transition-colors"
+              >
+                View Full Comparison
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
           </motion.div>
         )}

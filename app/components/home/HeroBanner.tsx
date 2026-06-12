@@ -1,7 +1,9 @@
+// app/components/home/HeroBanner.tsx
 'use client'
-import Link from 'next/link'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createBrowserClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+import { cn } from '@/app/lib/utils/cn'
 
 interface Product {
   id: string
@@ -10,11 +12,7 @@ interface Product {
   images: string[]
 }
 
-interface TopProduct {
-  id: string
-  name: string
-  image_url: string | null
-  images: string[]
+interface TopProduct extends Product {
   total_sold: number
 }
 
@@ -24,7 +22,7 @@ const HEADLINES = [
   { eyebrow: 'Shop with', word: 'Transparency.' },
 ]
 
-// Deterministic — no SSR/hydration mismatch
+// Deterministic particles - no SSR/hydration mismatch
 const PARTICLES = Array.from({ length: 32 }, (_, i) => ({
   id: i,
   cx: (i * 137.508) % 100,
@@ -38,7 +36,6 @@ const PARTICLES = Array.from({ length: 32 }, (_, i) => ({
 export default function HeroBanner() {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  // FIX: Added null initial value
   const primaryBtnRef = useRef<HTMLAnchorElement>(null)
   const secondaryBtnRef = useRef<HTMLAnchorElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -46,7 +43,6 @@ export default function HeroBanner() {
   const targetPos = useRef({ x: 0.5, y: 0.5 })
   const smoothPos = useRef({ x: 0.5, y: 0.5 })
   const trailPts = useRef<{ x: number; y: number; op: number }[]>([])
-  
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 })
   const [isHovering, setIsHovering] = useState(false)
   const [topProduct, setTopProduct] = useState<TopProduct | null>(null)
@@ -57,13 +53,11 @@ export default function HeroBanner() {
   const [mounted, setMounted] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
-  const [eyebrowText, setEyebrowText] = useState('THE BUSHAL COLLECTION')
   const [soldCount, setSoldCount] = useState(0)
   const [primaryDown, setPrimaryDown] = useState(false)
   const [secondaryDown, setSecondaryDown] = useState(false)
   const [orbOffset, setOrbOffset] = useState({ x: 0, y: 0 })
 
-  // FIX: This useEffect MUST be present to trigger animations
   useEffect(() => {
     setMounted(true)
     setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0)
@@ -134,7 +128,6 @@ export default function HeroBanner() {
   }, [])
 
   // ── magnetic buttons
-  // FIX: Updated type to accept nullable ref
   const applyMagnetic = useCallback((e: MouseEvent, ref: React.RefObject<HTMLAnchorElement | null>) => {
     const el = ref.current; if (!el) return
     const r = el.getBoundingClientRect()
@@ -210,7 +203,7 @@ export default function HeroBanner() {
 
   // fetch top product
   useEffect(() => {
-    const fetch = async () => {
+    const fetchProduct = async () => {
       const supabase = createBrowserClient()
       try {
         const { data, error } = await supabase.rpc('get_top_selling_product')
@@ -240,10 +233,10 @@ export default function HeroBanner() {
         }
       } catch { /* silent */ } finally { setLoading(false) }
     }
-    fetch()
+    fetchProduct()
   }, [countUp])
 
-  // headline rotation + scramble
+  // headline rotation
   useEffect(() => {
     const t = setInterval(() => {
       setPrevHlIndex(hlIndex)
@@ -257,6 +250,15 @@ export default function HeroBanner() {
   const productImage = topProduct && !imageError
     ? topProduct.images?.[0] || topProduct.image_url
     : null
+
+  // FIX: Use individual animation properties instead of mixing shorthand with longhand
+  const fadeUpStyle = (delay: number): React.CSSProperties => mounted ? {
+    animationName: 'fadeUp',
+    animationDuration: '0.75s',
+    animationTimingFunction: 'cubic-bezier(0.16,1,0.3,1)',
+    animationFillMode: 'both',
+    animationDelay: `${delay}ms`,
+  } : { opacity: 0 }
 
   return (
     <div
@@ -341,14 +343,14 @@ export default function HeroBanner() {
           }}
         />
       )}
-      {/* ════════════ LAYOUT ════════════ */}
+      {/* ═══════════ LAYOUT ═══════════ */}
       <div className="relative z-10 flex flex-col md:flex-row h-full">
         {/* ── Left copy column ── */}
-        <div className="flex-1 px-6 sm:px-10 md:px-12 lg:px-16 py-10 md:py-16 lg:py-20 flex flex-col justify-center pr-[clamp(120px,28vw,160px)] md:pr-0" >
+        <div className="flex-1 px-6 sm:px-10 md:px-12 lg:px-16 py-10 md:py-16 lg:py-20 flex flex-col justify-center pr-[clamp(120px,28vw,160px)] md:pr-0">
           {/* Eyebrow */}
           <div
             className="flex items-center gap-3 mb-6 md:mb-8"
-            style={{ animation: mounted ? 'fadeUp 0.75s cubic-bezier(0.16,1,0.3,1) both' : 'none', animationDelay: '0ms' }}
+            style={fadeUpStyle(0)}
           >
             <div className="flex items-center gap-1">
               {[0, 0.2, 0.4].map((d, i) => (
@@ -368,14 +370,14 @@ export default function HeroBanner() {
               className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.32em] font-mono"
               style={{ color: '#C8823A', letterSpacing: '0.32em' }}
             >
-              {eyebrowText}
+              THE BUSHAL COLLECTION
             </span>
             <div className="h-px w-8 flex-shrink-0" style={{ background: 'linear-gradient(to right, #B87333, transparent)' }} />
           </div>
           {/* Headline block */}
           <div
             className="mb-6 md:mb-8 lg:mb-10"
-            style={{ animation: mounted ? 'fadeUp 0.75s cubic-bezier(0.16,1,0.3,1) both' : 'none', animationDelay: '80ms' }}
+            style={fadeUpStyle(80)}
           >
             {/* Eyebrow line */}
             <div className="relative overflow-hidden mb-2" style={{ height: '1.65em' }}>
@@ -395,7 +397,7 @@ export default function HeroBanner() {
                 </p>
               ))}
             </div>
-            {/* Main hero word — NO gradient text, uses text-shadow instead */}
+            {/* Main hero word */}
             <div
               className="relative overflow-hidden"
               style={{ minHeight: 'clamp(3.8rem, 9vw, 7.5rem)', height: 'auto' }}
@@ -408,7 +410,6 @@ export default function HeroBanner() {
                     fontSize: 'clamp(2rem, 5.5vw, 6.5rem)',
                     letterSpacing: '-0.025em',
                     lineHeight: 1,
-                    /* Solid readable color — no gradient clip */
                     color: '#D9A55A',
                     textShadow: 'none',
                     opacity: i === hlIndex ? 1 : 0,
@@ -429,7 +430,13 @@ export default function HeroBanner() {
               className="mt-3 h-px"
               style={{
                 background: 'linear-gradient(to right, rgba(184,115,51,0.7), rgba(240,185,106,0.25), transparent)',
-                animation: mounted ? 'expandLine 1s cubic-bezier(0.16,1,0.3,1) 0.5s both' : 'none',
+                ...(mounted ? {
+                  animationName: 'expandLine',
+                  animationDuration: '1s',
+                  animationTimingFunction: 'cubic-bezier(0.16,1,0.3,1)',
+                  animationDelay: '0.5s',
+                  animationFillMode: 'both',
+                } : {}),
                 transformOrigin: 'left center',
               }}
             />
@@ -439,8 +446,7 @@ export default function HeroBanner() {
             className="text-sm sm:text-[15px] leading-[1.8] mb-8 md:mb-10 font-sans max-w-[400px]"
             style={{
               color: 'rgba(240,232,210,0.52)',
-              animation: mounted ? 'fadeUp 0.75s cubic-bezier(0.16,1,0.3,1) both' : 'none',
-              animationDelay: '160ms',
+              ...fadeUpStyle(160),
             }}
           >
             Handpicked, heritage-quality goods delivered across Bangladesh.{' '}
@@ -451,10 +457,7 @@ export default function HeroBanner() {
           {/* CTA buttons */}
           <div
             className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 mb-10 md:mb-12"
-            style={{
-              animation: mounted ? 'fadeUp 0.75s cubic-bezier(0.16,1,0.3,1) both' : 'none',
-              animationDelay: '240ms',
-            }}
+            style={fadeUpStyle(240)}
           >
             {/* Primary */}
             <Link
@@ -530,7 +533,7 @@ export default function HeroBanner() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-              Track Order
+              <span>Track Order</span>
             </Link>
           </div>
           {/* Trust strip */}
@@ -538,8 +541,7 @@ export default function HeroBanner() {
             className="flex flex-wrap items-center gap-4 sm:gap-6 md:gap-8 pt-5 md:pt-6"
             style={{
               borderTop: '1px solid rgba(240,232,210,0.07)',
-              animation: mounted ? 'fadeUp 0.75s cubic-bezier(0.16,1,0.3,1) both' : 'none',
-              animationDelay: '320ms',
+              ...fadeUpStyle(320),
             }}
           >
             {[
@@ -559,7 +561,7 @@ export default function HeroBanner() {
               <div
                 key={label}
                 className="flex items-center gap-2 group/trust cursor-default"
-                style={{ animation: mounted ? `fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) ${420 + idx * 70}ms both` : 'none' }}
+                style={fadeUpStyle(420 + idx * 70)}
               >
                 <svg
                   className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-300 group-hover/trust:scale-125"
@@ -654,7 +656,16 @@ export default function HeroBanner() {
                   {/* Badge */}
                   <div
                     className="absolute bottom-[13%] left-1/2 z-20 pointer-events-none"
-                    style={{ transform: 'translateX(-50%)', animation: 'badgePop 0.5s cubic-bezier(0.34,1.56,0.64,1) 1.2s both' }}
+                    style={{
+                      transform: 'translateX(-50%)',
+                      ...(mounted ? {
+                        animationName: 'badgePop',
+                        animationDuration: '0.5s',
+                        animationTimingFunction: 'cubic-bezier(0.34,1.56,0.64,1)',
+                        animationDelay: '1.2s',
+                        animationFillMode: 'both',
+                      } : {}),
+                    }}
                   >
                     <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: 'rgba(4,10,5,0.85)', backdropFilter: 'blur(14px)', border: '1px solid rgba(184,115,51,0.38)', boxShadow: '0 4px 14px rgba(0,0,0,0.45)' }}>
                       <svg className="w-3 h-3 flex-shrink-0" style={{ color: '#F0B96A' }} fill="currentColor" viewBox="0 0 20 20">
@@ -678,12 +689,12 @@ export default function HeroBanner() {
                 </div>
               )}
             </div>
-            {/* Float Card A — Premium (top-left) */}
+            {/* Float Cards */}
             <FloatCard
               style={{
                 top: '4%', left: '-7%',
                 transform: `translateZ(95px) translate(${(mousePos.x - 0.5) * -24}px, ${(mousePos.y - 0.5) * -24}px)`,
-                animation: mounted ? 'floatA 6s ease-in-out infinite' : 'none',
+                ...(mounted ? { animation: 'floatA 6s ease-in-out infinite' } : {}),
               }}
             >
               <div className="flex items-center gap-2 mb-1">
@@ -696,12 +707,11 @@ export default function HeroBanner() {
               </div>
               <p className="text-[10px] leading-snug font-sans" style={{ color: 'rgba(240,232,210,0.38)' }}>Heritage-grade goods</p>
             </FloatCard>
-            {/* Float Card B — Live Status (bottom-right) */}
             <FloatCard
               style={{
                 bottom: '2%', right: '-2%',
                 transform: `translateZ(75px) translate(${(mousePos.x - 0.5) * 22}px, ${(mousePos.y - 0.5) * 22}px)`,
-                animation: mounted ? 'floatB 7.5s ease-in-out infinite' : 'none',
+                ...(mounted ? { animation: 'floatB 7.5s ease-in-out infinite' } : {}),
               }}
             >
               <div className="flex items-center justify-between gap-3 mb-1.5">
@@ -713,14 +723,13 @@ export default function HeroBanner() {
               </div>
               <p className="text-[10px] font-sans" style={{ color: 'rgba(240,232,210,0.35)' }}>Orders shipping now</p>
             </FloatCard>
-            {/* Float Card C — bKash (top-right) */}
             <div
               className="absolute pointer-events-none"
               style={{
                 top: '16%', right: '2%',
                 transform: `translateZ(115px) translate(${(mousePos.x - 0.5) * 30}px, ${(mousePos.y - 0.5) * 30}px)`,
                 transition: 'transform 0.12s linear',
-                animation: mounted ? 'floatC 5.5s ease-in-out infinite' : 'none',
+                ...(mounted ? { animation: 'floatC 5.5s ease-in-out infinite' } : {}),
               }}
             >
               <div className="rounded-xl px-3 py-2" style={{ background: 'rgba(140,0,50,0.22)', backdropFilter: 'blur(18px)', border: '1px solid rgba(200,0,80,0.3)', boxShadow: '0 8px 24px rgba(120,0,40,0.3)' }}>
@@ -728,12 +737,11 @@ export default function HeroBanner() {
                 <p className="text-[8px] font-sans text-center mt-0.5" style={{ color: 'rgba(240,232,210,0.4)' }}>Secure Pay</p>
               </div>
             </div>
-            {/* Float Card D — Delivery (bottom-left) */}
             <FloatCard
               style={{
                 bottom: '15%', left: '-6%',
                 transform: `translateZ(65px) translate(${(mousePos.x - 0.5) * -18}px, ${(mousePos.y - 0.5) * 18}px)`,
-                animation: mounted ? 'floatD 8s ease-in-out infinite' : 'none',
+                ...(mounted ? { animation: 'floatD 8s ease-in-out infinite' } : {}),
                 minWidth: 112,
               }}
             >
@@ -748,7 +756,7 @@ export default function HeroBanner() {
           </div>
         </div>
       </div>
-      {/* ════ Mobile product circle ════ */}
+      {/* ═══ Mobile product circle ═══ */}
       <div
         className="md:hidden absolute right-2 top-6 pointer-events-none"
         style={{
@@ -791,7 +799,16 @@ export default function HeroBanner() {
         {topProduct && (
           <div
             className="absolute -bottom-2 left-1/2 z-20"
-            style={{ transform: 'translateX(-50%)', animation: 'badgePop 0.5s cubic-bezier(0.34,1.56,0.64,1) 1.1s both' }}
+            style={{
+              transform: 'translateX(-50%)',
+              ...(mounted ? {
+                animationName: 'badgePop',
+                animationDuration: '0.5s',
+                animationTimingFunction: 'cubic-bezier(0.34,1.56,0.64,1)',
+                animationDelay: '1.1s',
+                animationFillMode: 'both',
+              } : {}),
+            }}
           >
             <div className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'rgba(4,10,5,0.92)', border: '1px solid rgba(184,115,51,0.35)', backdropFilter: 'blur(12px)' }}>
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />

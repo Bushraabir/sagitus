@@ -21,6 +21,7 @@ export async function GET(_req: Request, { params }: Params) {
   const { data, error } = await supabase
     .from('products')
     .select(`*, comments (*)`)
+    .is('is_deleted', false)
     .eq('id', params.id)
     .is('is_deleted', false) // Ensure we don't fetch deleted products
     .single()

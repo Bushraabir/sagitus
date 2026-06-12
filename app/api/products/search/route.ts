@@ -80,6 +80,7 @@ async function fallbackSearch(
   const { data, error } = await supabase
     .from('products')
     .select('id, name, description, price, image_url, images, discount_percent, in_stock, stock_quantity, created_at, updated_at')
+    .is('is_deleted', false)
     .ilike('name', `%${query}%`)
     .eq('in_stock', true)
     .order('created_at', { ascending: false })

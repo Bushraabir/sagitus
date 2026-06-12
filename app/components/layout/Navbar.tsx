@@ -1,21 +1,15 @@
 // app/components/layout/Navbar.tsx
-
-// Updated Navbar to integrate the new premium SearchDropdown component.
-// Replaces the inline search dropdown with the Framer Motion-enhanced,
-// standalone SearchDropdown component for better code organization and
-// smoother animations.
-
 'use client'
 
 import { useAuth } from '@/app/hooks/useAuth'
 import { useCart } from '@/app/hooks/useCart'
+import { useWishlist } from '@/app/hooks/useWishList'
+import { useCompare } from '@/app/hooks/useCompare'
 import Link from 'next/link'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { cn } from '@/app/lib/utils/cn'
 import CartDrawer from '@/app/components/cart/CardDrawer'
-import { formatPrice } from '@/app/lib/utils/formatPrice'
 import { createBrowserClient } from '@/lib/supabase/client'
-// Import the new premium SearchDropdown component
 import SearchDropdown, { SearchResult } from '@/app/components/layout/SearchDropdown'
 
 interface Notification {
@@ -41,39 +35,41 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function Navbar() {
   const { items } = useCart()
   const { user, signOut } = useAuth()
+  const { getItemCount: getWishlistCount } = useWishlist()
+  const { getItemCount: getCompareCount } = useCompare()
   const supabase = createBrowserClient()
-  
+
   const [cartOpen, setCartOpen] = useState(false)
   const [prevCount, setPrevCount] = useState(0)
   const [cartBump, setCartBump] = useState(false)
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0)
-  
+  const wishlistCount = getWishlistCount()
+  const compareCount = getCompareCount()
+
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-  
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notifOpen, setNotifOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [notifLoading, setNotifLoading] = useState(true)
   const [searchFocused, setSearchFocused] = useState(false)
-  
+
   const notifRef = useRef<HTMLDivElement>(null)
   const debouncedQuery = useDebounce(query, 280)
   const searchRef = useRef<HTMLDivElement>(null)
   const mobileSearchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const mobileInputRef = useRef<HTMLInputElement>(null)
-  
+
   const unreadCount = notifications.filter((n) => !n.read).length
   const isAdmin = userRole === 'admin'
 
-  // Scroll listener for navbar background
+  // Scroll listener
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -113,20 +109,20 @@ export default function Navbar() {
         .select('role')
         .eq('id', user.id)
         .single()
-      
+
       const admin = profile?.role === 'admin'
       let q = supabase
         .from('notifications')
         .select('id, type, title, body, read, created_at, order_id, comment_id')
         .order('created_at', { ascending: false })
         .limit(20)
-      
+
       if (admin) {
         q = q.is('user_id', null)
       } else {
         q = q.eq('user_id', user.id)
       }
-      
+
       const { data, error } = await q
       if (error) {
         console.error('Error fetching notifications:', error)
@@ -215,11 +211,23 @@ export default function Navbar() {
     }
     let cancelled = false
     setSearching(true)
-    fetch(`/api/products/search?q=${encodeURIComponent(debouncedQuery)}`)
+    fetch(`/api/search/autocomplete?q=${encodeURIComponent(debouncedQuery)}&limit=6`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json() })
-      .then((data: SearchResult[]) => {
+      .then((data: any) => {
         if (cancelled) return
-        setResults(Array.isArray(data) ? data : [])
+        if (data.success && Array.isArray(data.suggestions)) {
+          setResults(data.suggestions.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            price: s.price,
+            image_url: s.image_url,
+            images: [],
+            discount_percent: null,
+            in_stock: s.in_stock,
+          })))
+        } else {
+          setResults([])
+        }
         setShowResults(true)
         setSearching(false)
       })
@@ -314,7 +322,7 @@ export default function Navbar() {
                         href={isAdmin ? '/admin/orders' : '/orders'}
                         className="text-xs text-bushal-copper font-semibold mt-1.5 inline-block hover:underline"
                       >
-                        View order →
+                        <span>View order →</span>
                       </Link>
                     )}
                     {n.comment_id && isAdmin && (
@@ -322,7 +330,7 @@ export default function Navbar() {
                         href="/admin/comments"
                         className="text-xs text-bushal-copper font-semibold mt-1.5 inline-block hover:underline"
                       >
-                        View comment →
+                        <span>View comment →</span>
                       </Link>
                     )}
                     <p className="text-[10px] text-bushal-inkSoft/70 mt-1.5">
@@ -413,8 +421,7 @@ export default function Navbar() {
                       </svg>
                     </button>
                   )}
-                  {/* Integrated Premium SearchDropdown */}
-                  <SearchDropdown 
+                  <SearchDropdown
                     results={results}
                     query={query}
                     showResults={showResults}
@@ -448,7 +455,7 @@ export default function Navbar() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
                         {unreadCount > 0 && (
-                          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-gradient-to-r from-bushal-danger to-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none shadow-lg shadow-rose-500/40 animate-bounce-pop">
+                          <span suppressHydrationWarning className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-gradient-to-r from-bushal-danger to-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none shadow-lg shadow-rose-500/40 animate-bounce-pop">
                             {unreadCount > 9 ? '9+' : unreadCount}
                           </span>
                         )}
@@ -470,7 +477,42 @@ export default function Navbar() {
                 </div>
 
                 {/* DESKTOP: Full navigation */}
-                <div className="hidden md:flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-1">
+                  {/* Wishlist Button */}
+                  {!isAdmin && (
+                    <Link
+                      href="/wishlist"
+                      className="relative p-2.5 rounded-xl transition-all duration-200 hover:scale-110 text-white/70 hover:text-white hover:bg-white/10"
+                      aria-label="Wishlist"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      {wishlistCount > 0 && (
+                        <span suppressHydrationWarning className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-gradient-to-r from-bushal-copper to-bushal-copperLight text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none shadow-lg shadow-bushal-copper/40 animate-bounce-pop">
+                          {wishlistCount > 9 ? '9+' : wishlistCount}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+
+                  {/* Compare Button */}
+                  {!isAdmin && compareCount > 0 && (
+                    <Link
+                      href="/compare"
+                      className="relative p-2.5 rounded-xl transition-all duration-200 hover:scale-110 text-white/70 hover:text-white hover:bg-white/10"
+                      aria-label="Compare"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                      </svg>
+                      <span suppressHydrationWarning className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-gradient-to-r from-bushal-forest to-bushal-forestMid text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none shadow-lg shadow-bushal-forest/40">
+                        {compareCount}
+                      </span>
+                    </Link>
+                  )}
+
+                  {/* Cart Button */}
                   {!isAdmin && (
                     <button
                       onClick={() => setCartOpen(true)}
@@ -481,7 +523,7 @@ export default function Navbar() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z" />
                       </svg>
                       {cartCount > 0 && (
-                        <span className={cn(
+                        <span suppressHydrationWarning className={cn(
                           'absolute -top-1 -right-1 min-w-[20px] h-5 bg-gradient-to-r from-bushal-copper to-bushal-copperLight text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none shadow-lg shadow-bushal-copper/40',
                           cartBump && 'animate-bounce-pop'
                         )}>
@@ -490,6 +532,8 @@ export default function Navbar() {
                       )}
                     </button>
                   )}
+
+                  {/* Notifications */}
                   {user && (
                     <div className="relative" ref={notifRef}>
                       <button
@@ -501,7 +545,7 @@ export default function Navbar() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
                         {unreadCount > 0 && (
-                          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-gradient-to-r from-bushal-danger to-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none shadow-lg shadow-rose-500/40 animate-bounce-pop">
+                          <span suppressHydrationWarning className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-gradient-to-r from-bushal-danger to-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 leading-none shadow-lg shadow-rose-500/40 animate-bounce-pop">
                             {unreadCount > 9 ? '9+' : unreadCount}
                           </span>
                         )}
@@ -509,11 +553,13 @@ export default function Navbar() {
                       {notifOpen && <NotificationPanel />}
                     </div>
                   )}
+
+                  {/* Auth / Profile */}
                   <div className="flex items-center gap-2 ml-2">
                     {user ? (
                       <>
                         <Link href="/orders" className="text-sm text-white/70 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200">
-                          Orders
+                          <span>Orders</span>
                         </Link>
                         <Link
                           href={isAdmin ? '/admin' : '/profile'}
@@ -530,19 +576,19 @@ export default function Navbar() {
                           onClick={signOut}
                           className="text-sm text-white/50 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200"
                         >
-                          Sign out
+                          <span>Sign out</span>
                         </button>
                       </>
                     ) : (
                       <>
                         <Link href="/login" className="text-sm text-bushal-copper hover:text-bushal-copperLight px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 font-medium">
-                          Sign in
+                          <span>Sign in</span>
                         </Link>
                         <Link
                           href="/register"
                           className="text-sm bg-gradient-to-r from-bushal-copper to-bushal-copperLight text-white px-5 py-2.5 rounded-lg font-semibold hover:shadow-lg hover:shadow-bushal-copper/30 hover:-translate-y-0.5 transition-all duration-300 active:scale-95"
                         >
-                          Register
+                          <span>Register</span>
                         </Link>
                       </>
                     )}
@@ -575,8 +621,7 @@ export default function Navbar() {
               </div>
             )}
           </div>
-          {/* Integrated Premium SearchDropdown for Mobile */}
-          <SearchDropdown 
+          <SearchDropdown
             results={results}
             query={query}
             showResults={showResults}
@@ -588,38 +633,84 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed top-16 left-0 right-0 z-40 border-t border-white/10 py-4 space-y-2 animate-fade-up px-4 bg-bushal-forest backdrop-blur-xl">
+        <div className="lg:hidden fixed top-16 left-0 right-0 z-40 border-t border-white/10 py-4 space-y-1 animate-fade-up px-4 bg-bushal-forest backdrop-blur-xl max-h-[calc(100vh-4rem)] overflow-y-auto">
           {user ? (
             <>
+              {/* Wishlist */}
+              <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between text-sm text-white/70 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">
+                <span className="flex items-center gap-3">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  <span>My Wishlist</span>
+                </span>
+                {wishlistCount > 0 && (
+                  <span suppressHydrationWarning className="bg-bushal-copper text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Compare */}
+              {compareCount > 0 && (
+                <Link href="/compare" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between text-sm text-white/70 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">
+                  <span className="flex items-center gap-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                    </svg>
+                    <span>Compare Products</span>
+                  </span>
+                  <span suppressHydrationWarning className="bg-bushal-forest text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {compareCount}
+                  </span>
+                </Link>
+              )}
+
+              {/* Orders */}
               <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 text-sm text-white/70 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                My Orders
+                <span>My Orders</span>
               </Link>
+
+              {/* Profile / Admin */}
               <Link href={isAdmin ? '/admin' : '/profile'} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 text-sm text-white/70 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                {isAdmin ? 'Analytics' : 'Profile'}
+                <span>{isAdmin ? 'Admin Panel' : 'My Profile'}</span>
               </Link>
+
+              {/* Sign out */}
               <button onClick={() => { signOut(); setMobileMenuOpen(false) }} className="flex items-center gap-3 w-full text-left text-sm text-white/50 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-                Sign out
+                <span>Sign out</span>
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-white/70 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">Sign in</Link>
-              <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="block text-sm bg-gradient-to-r from-bushal-copper to-bushal-copperLight text-white text-center px-3 py-3 rounded-xl font-semibold mt-2">Register</Link>
+              {/* Wishlist for guests */}
+              <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 text-sm text-white/70 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <span>Wishlist</span>
+              </Link>
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-white/70 hover:text-white px-3 py-3 rounded-xl hover:bg-white/10 transition-all">
+                <span>Sign in</span>
+              </Link>
+              <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="block text-sm bg-gradient-to-r from-bushal-copper to-bushal-copperLight text-white text-center px-3 py-3 rounded-xl font-semibold mt-2">
+                <span>Register</span>
+              </Link>
             </>
           )}
         </div>
       )}
 
-      {/* Spacer to prevent content from hiding behind fixed navbar */}
+      {/* Spacer */}
       <div className="h-16 lg:h-20" />
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
     </>

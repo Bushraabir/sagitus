@@ -795,7 +795,9 @@ export default function AdminAnalyticsClient({
             Analytics
           </h1>
           <p className="text-xs text-bushal-inkSoft mt-1">
-            {new Date().toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <span suppressHydrationWarning>
+              {new Date().toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
           </p>
         </div>
 

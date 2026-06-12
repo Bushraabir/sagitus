@@ -1,8 +1,10 @@
 // app/components/layout/BottomNav.tsx
 'use client'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCart } from '@/app/hooks/useCart'
+import { useWishlist } from '@/app/hooks/useWishList'
 import { cn } from '@/app/lib/utils/cn'
 
 const NAV_ITEMS = [
@@ -17,25 +19,26 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: '/orders',
-    label: 'Orders',
+    href: '/wishlist',
+    label: 'Wishlist',
+    showBadge: true,
     icon: (active: boolean) => (
       <svg className="w-6 h-6" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 2}
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
       </svg>
     ),
   },
   {
     href: '/cart',
     label: 'Cart',
+    showBadge: true,
     icon: (active: boolean) => (
       <svg className="w-6 h-6" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 2}
           d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z" />
       </svg>
     ),
-    showBadge: true,
   },
   {
     href: '/profile',
@@ -52,20 +55,26 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname()
   const { items } = useCart()
+  const { getItemCount: getWishlistCount } = useWishlist()
+  
   const cartCount = items.reduce((s, i) => s + i.quantity, 0)
+  const wishlistCount = getWishlistCount()
 
-  // FIX: Hide on admin pages to prevent redundant/cluttered navigation
+  // Hide on admin pages
   if (pathname.startsWith('/admin')) return null
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
 
   return (
-    // FIX: 'md:hidden' ensures this bar is completely hidden on desktop/larger screens
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-bushal-surface border-t border-bushal-border safe-bottom shadow-[0_-4px_20px_rgba(27,58,45,0.08)]">
       <div className="flex items-center justify-around px-2 pt-2 pb-1">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href)
+          let badgeCount = 0
+          if (item.href === '/cart') badgeCount = cartCount
+          if (item.href === '/wishlist') badgeCount = wishlistCount
+
           return (
             <Link
               key={item.href}
@@ -77,9 +86,9 @@ export default function BottomNav() {
             >
               <span className="relative">
                 {item.icon(active)}
-                {item.showBadge && cartCount > 0 && (
+                {item.showBadge && badgeCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-4.5 bg-gradient-to-r from-bushal-copper to-bushal-copperLight text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none shadow-md shadow-bushal-copper/30 animate-bounce-pop">
-                    {cartCount > 9 ? '9+' : cartCount}
+                    {badgeCount > 9 ? '9+' : badgeCount}
                   </span>
                 )}
               </span>

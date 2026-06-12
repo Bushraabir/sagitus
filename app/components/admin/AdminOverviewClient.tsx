@@ -774,7 +774,9 @@ export default function AdminOverviewClient({
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-bushal-forest tracking-tight">Store Overview</h1>
           <p className="text-[11px] text-bushal-inkSoft mt-1">
-            {new Date().toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <span suppressHydrationWarning>
+              {new Date().toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

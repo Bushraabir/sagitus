@@ -1,3 +1,4 @@
+// app/(customer)/thank-you/page.tsx
 import { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/app/components/layout/Navbar'
@@ -22,19 +23,18 @@ export default async function ThankYouPage({ searchParams }: Props) {
 
   if (searchParams.orderId) {
     const supabase = await createServerClient()
-    
     // Fetch the order
-    const { data: orderData } = await (await supabase)
+    const { data: orderData } = await supabase
       .from('orders')
       .select('*')
       .eq('id', searchParams.orderId)
       .single()
     
     order = orderData
-    
+
     // Fetch the customer's profile using the user_id from the order
     if (orderData?.user_id) {
-      const { data: profileData } = await (await supabase)
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('id', orderData.user_id)
@@ -116,7 +116,7 @@ export default async function ThankYouPage({ searchParams }: Props) {
             href="/orders"
             className="inline-flex items-center gap-2 text-bushal-inkMid hover:text-bushal-forest text-sm font-medium font-body px-6 py-3.5 rounded-xl border border-bushal-border hover:border-bushal-forest/30 hover:bg-bushal-surface transition-all duration-300"
           >
-            View All Orders
+            <span>View All Orders</span>
             <svg className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>

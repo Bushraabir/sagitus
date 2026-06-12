@@ -1,10 +1,5 @@
 // app/components/product/ProductCard.tsx
 
-// Updated ProductCard to integrate the new Wishlist and Compare 
-// Zustand hooks. Replaces the local `isWished` state with 
-// persistent global state. Adds a premium "Compare" toggle 
-// button and ensures smooth micro-interactions.
-
 'use client'
 
 import Link from 'next/link'
@@ -27,20 +22,18 @@ export default function ProductCard({ product, index = 0 }: Props) {
   const { addItem } = useCart()
   const { toggleItem: toggleWishlist, isInWishlist } = useWishlist()
   const { toggleItem: toggleCompare, isInCompare } = useCompare()
-  
   const [added, setAdded] = useState(false)
   const [imgIndex, setImgIndex] = useState(0)
   const [quickViewOpen, setQuickViewOpen] = useState(false)
-  
-  // Derive state from global stores
+
   const isWished = isInWishlist(product.id)
   const isCompared = isInCompare(product.id)
 
   const discountedPrice = product.discount_percent
     ? product.price * (1 - product.discount_percent / 100)
     : null
+
   const images = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
-  
   const stockDisplay = getStockStatus(product.stock_quantity)
 
   const handleAdd = (e: React.MouseEvent) => {
@@ -64,12 +57,18 @@ export default function ProductCard({ product, index = 0 }: Props) {
     toggleCompare(product)
   }
 
+  const handleQuickView = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setQuickViewOpen(true)
+  }
+
   return (
     <div
       className="group animate-fade-up flex flex-col"
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      {/* Image Container - Editorial 3:4 Portrait Ratio */}
+      {/* Image Container */}
       <Link
         href={`/product/${product.id}`}
         className="block relative overflow-hidden rounded-2xl bg-bushal-ivoryDeep aspect-[3/4] shadow-card hover:shadow-cardHover transition-all duration-500 ease-out"
@@ -109,18 +108,18 @@ export default function ProductCard({ product, index = 0 }: Props) {
           )}
         </div>
 
-        {/* Inner Vignette for Premium Depth */}
+        {/* Inner Vignette */}
         <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/5 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-        {/* Typographic Discount Badge */}
+        {/* Discount Badge */}
         {product.discount_percent && (
           <div className="absolute top-4 left-4 z-10 bg-bushal-forest text-bushal-copperGlow text-[10px] font-bold tracking-[0.15em] uppercase px-3 py-1.5 shadow-lg shadow-black/10">
             −{product.discount_percent}%
           </div>
         )}
 
-        {/* Dynamic Stock Status Badge */}
+        {/* Stock Status Badge */}
         {product.stock_quantity === 0 ? (
           <div className="absolute top-4 left-4 z-10 bg-bushal-dangerBg/90 backdrop-blur-md text-bushal-danger text-[10px] font-bold tracking-[0.15em] uppercase px-3 py-1.5 border border-bushal-danger/20">
             Sold Out
@@ -147,12 +146,12 @@ export default function ProductCard({ product, index = 0 }: Props) {
           </svg>
         </button>
 
-        {/* Compare Button (Bottom Left) */}
+        {/* Compare Button (Bottom Left) - Links to /compare when clicked */}
         <button
           onClick={handleCompareToggle}
           className={cn(
             "absolute bottom-5 left-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 z-10 backdrop-blur-md",
-            isCompared 
+            isCompared
               ? "bg-bushal-forest text-white scale-110 shadow-lg shadow-bushal-forest/30"
               : "bg-bushal-ivory/90 text-bushal-forest hover:bg-bushal-ivory hover:scale-110 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 shadow-lg"
           )}
@@ -165,7 +164,7 @@ export default function ProductCard({ product, index = 0 }: Props) {
 
         {/* Quick View Button (Bottom Right) */}
         <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQuickViewOpen(true) }}
+          onClick={handleQuickView}
           className="absolute bottom-5 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-bushal-ivory/90 backdrop-blur-md text-bushal-forest hover:bg-bushal-ivory hover:scale-110 transition-all duration-300 z-10 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 shadow-lg"
           aria-label="Quick view"
         >
@@ -176,7 +175,7 @@ export default function ProductCard({ product, index = 0 }: Props) {
         </button>
 
         {/* Quick Add Overlay (Desktop Only) */}
-        <div className="absolute inset-x-2 bottom-0 px-16 py-2 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out z-10 hidden md:block ">
+        <div className="absolute inset-x-2 bottom-0 px-16 py-2 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out z-10 hidden md:block">
           <button
             onClick={handleAdd}
             disabled={!product.in_stock}
@@ -203,7 +202,7 @@ export default function ProductCard({ product, index = 0 }: Props) {
           </p>
         )}
 
-        {/* Product Name - Italic for luxury signal if discounted */}
+        {/* Product Name */}
         <Link href={`/product/${product.id}`} className="group/link block">
           <h3
             className={cn(

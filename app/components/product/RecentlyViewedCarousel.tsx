@@ -106,7 +106,3 @@ export default function RecentlyViewedCarousel({ currentProductId, className }: 
     </section>
   )
 }
-
-// =========================================================
-// End of File Location: app/components/product/RecentlyViewedCarousel.tsx
-// =========================================================
